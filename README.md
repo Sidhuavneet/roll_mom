@@ -10,7 +10,7 @@ Submission for the hands-on technical assessment: 20-day rolling momentum and to
 |-------------|--------|--------|
 | Compute 20-day rolling momentum per ticker: `(price today / price 20 days ago) − 1` | Done | `momentum_engine.compute_top5_momentum_for_date` (uses that formula per ticker) |
 | Function that returns the top 5 tickers by momentum for a given date | Done | `momentum_engine.compute_top5_momentum_for_date(rows, target_date, dates, date_to_index)` → list of `(ticker, momentum)` |
-| Tests for edge cases identified in the data | Documented | Edge cases and handling are in **EDGE_CASES.md**; engine is testable without I/O (see *Testing* below) |
+| Tests for edge cases identified in the data | Done | **test_momentum.py** — tests for all edge cases listed below (run: `python -m pytest test_momentum.py` or `python -m unittest test_momentum`) |
 
 ---
 
@@ -21,7 +21,7 @@ Submission for the hands-on technical assessment: 20-day rolling momentum and to
 | **momentum_engine.py** | Core logic: clean raw CSV → clean CSV, load prices, compute 20-day momentum, top-5 for a date. No stdin/stdout. |
 | **cli.py** | Interactive CLI: prompts for date (YYYY-MM-DD), shows top 5 (from cache or computed), loop until quit. |
 | **momentum_app.py** | Entry point: runs `cli.main()` (so `python momentum_app.py` or `python cli.py`). |
-| **EDGE_CASES.md** | Table of 12 data edge cases and how each is handled. |
+| **test_momentum.py** | Tests for edge cases identified in the data (see *Edge cases* and *Testing* below). |
 | **stock_prices_1.csv** | Input: daily closing prices (date, ticker, close_price). Provided with the assignment. |
 | **stock_prices_2.csv** | Generated: cleaned version of `stock_prices_1.csv` (invalid/duplicate rows removed). Do not commit; regenerated on run. |
 | **momentum_results.json** | Generated: cache of date → top 5 (ticker, momentum). Do not commit; regenerated on run. |
@@ -97,7 +97,7 @@ Return convention:
 
 ## Edge cases and how they are handled
 
-(Full table in **EDGE_CASES.md**.)
+The following edge cases were identified in the data and are handled in code; each is covered by tests in **test_momentum.py**.
 
 | # | Edge case | Handling |
 |---|-----------|----------|
@@ -127,18 +127,27 @@ Return convention:
 
 ## Testing
 
-The assignment asks for tests for edge cases. Edge cases are documented in **EDGE_CASES.md**. The engine is written so it can be tested without I/O:
+Run the edge-case tests (no extra packages required; uses Python’s built-in `unittest`):
 
-- `clean_and_save_prices()` reads/writes files but can be run against a fixture path.
-- `compute_top5_momentum_for_date(rows, target_date, dates, date_to_index)` is pure: given in-memory `rows`, `dates`, and `date_to_index`, it returns None / [] / list of (ticker, momentum).
+```bash
+python -m unittest test_momentum
+```
 
-Suggested tests (e.g. with pytest):
+With pytest (optional):
 
-- Date not in `date_to_index` → None.
-- Date at index &lt; 20 → [].
-- Date with valid data → list of 5 (or fewer) pairs; momentum formula and sort order.
-- Ticker missing on target date or 20d-ago date → excluded from result.
-- Duplicate (date, ticker) in raw data → after clean, only one row per (date, ticker).
+```bash
+python -m pytest test_momentum.py -v
+```
+
+**test_momentum.py** covers the edge cases listed above:
+
+- **Date not in data** (e.g. weekend, out of range) → `compute_top5_momentum_for_date` returns `None`.
+- **Insufficient history** (fewer than 20 trading days before date) → returns `[]`.
+- **Valid date** → returns up to 5 `(ticker, momentum)` pairs; momentum = `(price_today / price_20d_ago) - 1`; sort by momentum desc, tie-break by ticker.
+- **Missing ticker** on target date or 20d-ago date → that ticker excluded from result (fewer than 5 can be returned).
+- **Zero price 20 days ago** → that ticker skipped (no division).
+- **Ties in momentum** → deterministic order by ticker name.
+- **Cleaning step:** empty/missing price dropped; duplicate (date, ticker) kept last; empty lines and non-numeric price dropped; log messages mention removed rows.
 
 ---
 
